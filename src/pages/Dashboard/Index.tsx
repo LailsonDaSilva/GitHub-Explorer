@@ -1,61 +1,99 @@
-import React from 'react';
+import React, { FormEvent, useEffect, useState } from 'react';
+import { Title, Form, Repositories, Error} from './styles';
+import { FiChevronRight } from 'react-icons/fi'
+import api from '../../services/api';
+import { Link } from 'react-router-dom';
 import Logo from '../../assets/logo.svg';
-import { Title, Form, Repositories } from './styles';
-import { FiChevronRight} from 'react-icons/fi'
-const Dashboard: React.FC = () => (
-  <>
-    <img src={Logo} alt="GitHub explorer" />
-    <Title>Explore Reposirios no GitHub</Title>
-    <Form>
-      <input placeholder="Digite o nome do repositório"/>
-      <button type="submit">Pesquisar</button>
-    </Form>
-    <Repositories>
-      <a href="">
-        <img src="https://avatars.githubusercontent.com/u/55147170?v=4" alt="Lailson" />
 
-        <div>
-          <strong>
-                Basketball Training
-          </strong>
-          <p>
-              App para treinos e performance
-          </p>
-        </div>
-        <FiChevronRight size={20}/>
-      </a>
+interface Repository {
+  full_name: string;
+  description: string;
+  owner: {
+    login: string;
+    avatar_url: string;
+  };
+}
 
-      <a href="">
-        <img src="https://avatars.githubusercontent.com/u/55147170?v=4" alt="Lailson" />
 
-        <div>
-          <strong>
-                Basketball Training
-          </strong>
-          <p>
-              App para treinos e performance
-          </p>
-        </div>
-        <FiChevronRight size={20}/>
-      </a>
+const Dashboard: React.FC = () => {
+  const [newRepo, setNewRepo] = useState('');
+  const [InputError, setInputError] = useState('');
 
-      <a href="">
-        <img src="https://avatars.githubusercontent.com/u/55147170?v=4" alt="Lailson" />
+  const [repositories, setRepositories] = useState<Repository[]>(() => {
+    const storageRepositories = localStorage.getItem(
+      '@GithubExplorer:repositories',
+    );
 
-        <div>
-          <strong>
-                Basketball Training
-          </strong>
-          <p>
-              App para treinos e performance
-          </p>
-        </div>
-        <FiChevronRight size={20}/>
-      </a>
-    </Repositories>
+    if (storageRepositories) {
+      return JSON.parse(storageRepositories);
+    }
 
+    return [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem(
+      '@GithubExplorer:repositories',
+      JSON.stringify(repositories),
+    );
+  }, [repositories]);
+
+  
+  async function handleAddRepository(
+    e: FormEvent<HTMLFormElement>,
+  ): Promise<void> {
+    e.preventDefault();
+
+    if(!newRepo){
+      setInputError('Digite um autor/nome do repositório');
+      return;
+    }
     
-  </>
-);
+    try{
+    const response = await api.get<Repository>(`repos/${newRepo}`);
+
+    const repository = response.data;
+
+    setRepositories([...repositories, repository]);
+    setNewRepo('');
+    setInputError('')
+  }catch{
+    setInputError('Erro na busca desse repositório')
+  }
+  }
+  return (
+    <>
+      <img src={Logo} alt="GitHub explorer" />
+      <Title>Explore Reposirios no GitHub</Title>
+      <Form hasError={!!InputError} onSubmit={handleAddRepository}>
+        <input
+          value={newRepo}
+          onChange={e => setNewRepo(e.target.value)}
+          placeholder="Digite o nome do repositório"
+        />
+        <button type="submit">Pesquisar</button>
+      </Form>
+      {InputError && <Error>{InputError}</Error>}
+      <Repositories>
+        {repositories.map(repository => (
+          <Link  key={repository.full_name}
+          to={`/repositories/${repository.full_name}`}>
+            <img src={repository.owner.avatar_url} alt="Lailson" />
+
+            <div>
+              <strong>
+                {repository.full_name}
+              </strong>
+              <p>
+                {repository.description}
+              </p>
+            </div>
+            <FiChevronRight size={20} />
+          </Link>
+        ))}
+      </Repositories>
+    </>
+  );
+};
 
 export default Dashboard;
